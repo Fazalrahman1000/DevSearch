@@ -1,32 +1,51 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.http import HttpResponse
-# Create your views here.
-projectslist = [
-        {
-            'id':'1',
-            'name':'Ecommerce website',
-            'description':'one of good website for business'
-        },
-        {
-            'id':'2',
-            'name':'Education website',
-            'description':'one of good website for education'
-        },
-        {
-            'id':'3',
-            'name':'Exam website',
-            'description':'one of good website for examinations'
-        },
-    ]
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from .models import Projects, Reviews, Tag
+from .forms import ProjectForm
 
 def projects(request):
-    context = {'projects':projectslist}
+    projects = Projects.objects.all()
+    context = {'projects':projects}
     return render(request, 'projects/projects.html', context)
 
 
 def project(request, pk):
-    singleProject = None
-    for project in projectslist:
-        if project['id'] == pk:
-            singleProject = project
-    return render(request, "projects/single-project.html", {'single':singleProject})
+    singleProject = Projects.objects.get(id=pk)
+    tags = singleProject.tags.all()
+    return render(request, "projects/single-project.html", {'single':singleProject, 'tags':tags})
+
+
+@login_required(login_url='login')
+def createProject(request):
+    form = ProjectForm()
+    if request.method == "POST":
+        form = ProjectForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            return redirect('projects')
+    context = {'form':form}
+    return render(request, "projects/project_form.html", context)
+
+@login_required(login_url='login')
+def updateProject(request, pk):
+    project = Projects.objects.get(id = pk)
+    form = ProjectForm(instance=project)
+    if request.method == "POST":
+        form = ProjectForm(request.POST,request.FILES, instance=project)
+        if form.is_valid():
+            form.save()
+            return redirect('projects')
+    context = {'form':form}
+    return render(request, "projects/project_form.html", context)
+
+@login_required(login_url='login')
+def deleteProject(request, pk):
+    project = Projects.objects.get(id = pk)
+    if request.method == "POST":
+        project.delete()
+        return redirect('projects')
+    context = {'project':project}
+
+    return render(request, 'projects/delete-project.html', context)
