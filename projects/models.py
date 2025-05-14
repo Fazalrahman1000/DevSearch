@@ -1,7 +1,7 @@
 from django.db import models
 from users.models import Profile
 import uuid
-# Create your models here.
+
 
 class Projects(models.Model):
     owner = models.ForeignKey(Profile,on_delete=models.SET_NULL, null=True, blank=True)
@@ -19,6 +19,29 @@ class Projects(models.Model):
     def __str__(self):
         return self.title
     
+    class Meta:
+        ordering = ['-vote_ratio', '-vote_total', 'title']
+    
+    @property
+    def reviwers(self):
+        queryset = self.reviews_set.all().values_list('owner__id', flat=True)
+        return queryset
+
+    @property
+    def getVoteCount(self):
+        review = self.reviews_set.all()
+        upVotes = review.filter(value='up').count()
+        totalReviews = review.count()
+
+        if totalReviews > 0:
+            ratio = (upVotes / totalReviews) * 100
+        else:
+            ratio = 0
+
+        self.vote_total = totalReviews
+        self.vote_ratio = int(ratio)
+        self.save()
+
 
 
 class Reviews(models.Model):
@@ -26,7 +49,7 @@ class Reviews(models.Model):
         ('up', 'Up Vote'),
         ('down', 'Down Vote')
     ]
-    # owner = 
+    owner = models.ForeignKey(Profile, on_delete=models.CASCADE, null=True, blank=True)
     project = models.ForeignKey(Projects, on_delete=models.CASCADE, null=True)
     body = models.TextField(null=True, blank=True)
     value = models.CharField(max_length=200,choices=VOTE_TYPE)
@@ -35,6 +58,9 @@ class Reviews(models.Model):
 
     def __str__(self):
         return self.value
+    
+    class Meta:
+        unique_together = [['owner','project']]
     
 
 class Tag(models.Model):
